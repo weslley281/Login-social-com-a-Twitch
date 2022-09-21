@@ -62,6 +62,32 @@ function AuthProvider({ children }: AuthProviderData) {
         `&scope=${SCOPE}` +
         `&force_verify=${FORCE_VERIFY}` +
         `&state=${STATE}`;
+
+      const authResponse = await startAsync({ authUrl });
+
+      if (
+        authResponse.type === 'success' &&
+        authResponse.params.error !== 'access_denied'
+      ) {
+        if (authResponse.params.state !== STATE) {
+          throw new Error('Invalid state value');
+        }
+
+        api.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${authResponse.params.access_token}`;
+
+        const userResponse = await api.get('/users');
+
+        setUser({
+          id: userResponse.data.data[0].id,
+          display_name: userResponse.data.data[0].display_name,
+          email: userResponse.data.data[0].email,
+          profile_image_url: userResponse.data.data[0].profile_image_url,
+        });
+
+        setUserToken(authResponse.params.access_token);
+      }
     } catch (error) {
       // throw an error
     } finally {
@@ -83,7 +109,7 @@ function AuthProvider({ children }: AuthProviderData) {
   }
 
   useEffect(() => {
-    api.defaults.headers['Client-Id'] = CLIENT_ID;
+    api.defaults.headers.common['Client-Id'] = CLIENT_ID!;
   }, []);
 
   return (
